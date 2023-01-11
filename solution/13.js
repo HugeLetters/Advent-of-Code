@@ -11,3 +11,4 @@ const solution = (input) => {
     const result = input;
     return result
 }
+
