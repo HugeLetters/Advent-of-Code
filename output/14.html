@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cave Canvas</title>
+    <style>
+        html,
+        body,
+        #container {
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: black;
+        }
+
+        #cave {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="container">
+        <canvas id="cave" />
+    </div>
+    <script>
+        const caveWebSocket = new WebSocket("ws://localhost:3000");
+        const frameTime = 1000 / 120;
+        caveWebSocket.onmessage = e => {
+            const message = JSON.parse(e.data);
+            switch (message?.type) {
+                case 1:
+                    scale = Math.ceil(window.innerWidth / message.width);
+                    canvas.width = message.width * scale;
+                    canvas.height = message.height * scale;
+                    message.cave.forEach(dataPoint => {
+                        drawPoint(cave, scale, dataPoint)
+                    });
+                    sendDelayedMessage(caveWebSocket, { type: 1 }, frameTime);
+                    break;
+                case 2:
+                    prevSand.forEach(dataPoint => {
+                        if (dataPoint.state) drawPoint(cave, scale, { ...dataPoint, value: 0 });
+                    })
+                    prevSand = message.sand;
+                    message.sand.forEach(dataPoint => {
+                        drawPoint(cave, scale, dataPoint);
+                    })
+                    sendDelayedMessage(caveWebSocket, { type: 1 }, frameTime);
+                    break;
+            }
+        }
+        const sendDelayedMessage = (ws, message, delay) => {
+            setTimeout(() => {
+                ws.send(JSON.stringify(message))
+            }, delay);
+        }
+    </script>
+    <script>
+        let prevSand = [];
+        const canvas = document.getElementById("cave");
+        const cave = canvas.getContext("2d");
+        let scale;
+        const contextParser = ["#000", "#AAA", "#FFFF00", "#FFF"];
+        const drawPoint = (canvasContext, scale, point) => {
+            canvasContext.fillStyle = contextParser[point.value];
+            canvasContext.fillRect(point.x * scale - 1500, point.y * scale, scale, scale);
+        }
+    </script>
+</body>
+
+</html>
