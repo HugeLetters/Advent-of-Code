@@ -8,16 +8,17 @@ input
     .catch(error => { console.error(`Error occured\n${error}`); });
 
 const solution = (input) => {
+    
     console.time(1);
-
     const graph = parseInput(input);
     const distanceMap = transformDistanceMap(graph, FWPath(graph));
     const clearGraph = parseGraph(graph, distanceMap, "AA");
+
     // const result = findBestPath(clearGraph, 30, "START");
     // const result = findBestPath(testGraph, 100, "START");
 
     const result = findBestPathDuo(clearGraph, 26);
-    // const result = findBestPathDuoV2(testGraph, 100);
+    // const result = findBestPathDuo(testGraph, 100);
 
     console.timeEnd(1);
     return result
@@ -167,33 +168,32 @@ const findBestPathDuo = (graph, limit) => {
     let max = 0;
     while (consideredStates.getElements().length != 0) {
         const current = consideredStates.popHead();
+        if (getScore(totalScore, current) < max) continue;
         const { start, limit, visitedBitmap } = current;
         const nodeKey = start[0];
         const timer = limit[0];
-        if ((timer <= 2) || !(~visitedBitmap & graph[nodeKey].refBitmap)) continue;
-        graph[nodeKey].refPriority.forEach(neighbour => {
-            const neighbourBitmap = 1 << neighbour;
-            if (visitedBitmap & neighbourBitmap) return null;
+        let unvisitedRefsBitmap = (~visitedBitmap & graph[nodeKey].refBitmap) >> 1;
+        if (timer <= 2) continue;
+        for (let neighbour = 1; unvisitedRefsBitmap; neighbour++, unvisitedRefsBitmap >>= 1) {
+            if (!(unvisitedRefsBitmap % 2)) continue;
             const neighbourLimit = (timer - graph[nodeKey].refDistance[neighbour]);
-            if (neighbourLimit <= 0) return null;
-            const neighbourState = { visitedBitmap: visitedBitmap | neighbourBitmap };
+            if (neighbourLimit <= 0) continue;
+            const neighbourState = { visitedBitmap: visitedBitmap | (1 << neighbour) };
             neighbourState.start = [start[1], neighbour];
             neighbourState.limit = [limit[1], neighbourLimit];
             const neighbourID = getId(neighbourState);
-            if (interimScore[neighbourID] != undefined) return null;
+            if (interimScore[neighbourID] != undefined) continue;
 
             const neighbourPressure = neighbourLimit * graph[neighbour].value;
             const currentScore = getScore(interimScore, current) + neighbourPressure;
 
-            if (currentScore > getScore(interimScore, neighbourState)) {
+            interimScore[neighbourID] = currentScore;
+            totalScore[neighbourID] = currentScore + estimate(graph, neighbourState);
+            if (totalScore[neighbourID] > max) {
                 max = Math.max(max, currentScore);
-                interimScore[neighbourID] = currentScore;
-                totalScore[neighbourID] = currentScore + estimate(graph, neighbourState);
-                if (totalScore[neighbourID] > max) {
-                    consideredStates.addValue(neighbourState);
-                }
-            }
-        })
+                consideredStates.addValue(neighbourState)
+            };
+        }
     }
 
     return max;
@@ -204,7 +204,14 @@ const getScore = (scoreMap, state) => {
     return log ? log : 0
 }
 
-const getId = (state) => `${state.start},${[state.limit]},${state.visitedBitmap}`;
+const getId = (state) => {
+    let { start, limit, visitedBitmap } = state;
+    if (start[0] > start[1]) {
+        start = `${start[1]},${start[0]}`;
+        limit = `${limit[1]},${limit[0]}`;
+    }
+    return `${start},${[limit]},${visitedBitmap}`
+};
 
 const estimate = (graph, state) => {
     const { limit, start, visitedBitmap } = state;
@@ -251,8 +258,8 @@ class priorityQueue {
 }
 
 const testGraph = {
-    "START": { value: 0, refs: { "A": 99, "B": 1, "C": 2 } },
-    "A": { value: 10000, refs: { "B": 100, "C": 101 } },
-    "B": { value: 10, refs: { "A": 100, "C": 1 } },
-    "C": { value: 10, refs: { "A": 101, "B": 1, } },
+    "START": { value: 0, refs: { "A": 99, "B": 2, "C": 4 } },
+    "A": { value: 10000, refs: { "B": 101, "C": 103 } },
+    "B": { value: 10, refs: { "A": 102, "C": 2 } },
+    "C": { value: 10, refs: { "A": 103, "B": 2, } },
 }
