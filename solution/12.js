@@ -8,11 +8,13 @@ input
     .catch(error => { console.error(`Error occured\n${error}`); });
 
 const solution = (input) => {
+    console.time(1);
     const grid = getGrid(input);
     const { start, end } = getInfoGrid(grid);
     const shortestPath = findClosestStart(start, end, pathEstimate);
     const gridWithPath = showGridPath(grid, shortestPath.path);
     const result = shortestPath;
+    console.timeEnd(1);
     fs.writeFile(`./output/${fileName}.txt`, gridWithPath)
     return result
 }
@@ -75,12 +77,12 @@ const findShortestPath = (start, end, estimate) => {
 
 const findClosestStart = (start, end, estimate) => {
     const originNode = {}, interimScore = {}, totalScore = {};
-    const consideredNodes = new priorityQueue(start, (a, b) => getScore(totalScore, a) - getScore(totalScore, b))
-    consideredNodes.getElements().forEach(node => {
+    start.forEach(node => {
         interimScore[node.id] = 0;
         totalScore[node.id] = estimate(node, end);
     }
     )
+    const consideredNodes = new priorityQueue(start, (a, b) => getScore(totalScore, a) - getScore(totalScore, b))
 
     while (consideredNodes.getElements().length != 0) {
         const current = consideredNodes.popHead();

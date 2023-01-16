@@ -17,7 +17,7 @@ const solution = (input) => {
     // const result = findBestPath(testGraph, 100, "START");
 
     const result = findBestPathDuo(clearGraph, 26);
-    // const result = findBestPathDuo(testGraph, 100);
+    // const result = findBestPathDuoV2(testGraph, 100);
 
     console.timeEnd(1);
     return result
@@ -157,51 +157,98 @@ const findBestPathStep = (graph, limit, start, visitedBitmap, currentMax) => {
 }
 
 const findBestPathDuo = (graph, limit) => {
-    const newGraph = optimizeGraph(graph, limit);
-    return findBestPathDuoStep(newGraph, [limit, limit], [0, 0], 1, 0)
+    graph = optimizeGraph(graph, limit);
+    const startState = { start: [0, 0], limit: [limit, limit], visitedBitmap: 1 };
+    const consideredStates = new priorityQueue([startState]
+        , (a, b) => getScore(totalScore, a) - getScore(totalScore, b));
+    const interimScore = { [getId(startState)]: 0 };
+    const totalScore = { [getId(startState)]: estimate(graph, startState) };
+
+    let max = 0;
+    while (consideredStates.getElements().length != 0) {
+        const current = consideredStates.popHead();
+        const { start, limit, visitedBitmap } = current;
+        const nodeKey = start[0];
+        const timer = limit[0];
+        if ((timer <= 2) || !(~visitedBitmap & graph[nodeKey].refBitmap)) continue;
+        graph[nodeKey].refPriority.forEach(neighbour => {
+            const neighbourBitmap = 1 << neighbour;
+            if (visitedBitmap & neighbourBitmap) return null;
+            const neighbourLimit = (timer - graph[nodeKey].refDistance[neighbour]);
+            if (neighbourLimit <= 0) return null;
+            const neighbourState = { visitedBitmap: visitedBitmap | neighbourBitmap };
+            neighbourState.start = [start[1], neighbour];
+            neighbourState.limit = [limit[1], neighbourLimit];
+            const neighbourID = getId(neighbourState);
+            if (interimScore[neighbourID] != undefined) return null;
+
+            const neighbourPressure = neighbourLimit * graph[neighbour].value;
+            const currentScore = getScore(interimScore, current) + neighbourPressure;
+
+            if (currentScore > getScore(interimScore, neighbourState)) {
+                max = Math.max(max, currentScore);
+                interimScore[neighbourID] = currentScore;
+                totalScore[neighbourID] = currentScore + estimate(graph, neighbourState);
+                if (totalScore[neighbourID] > max) {
+                    consideredStates.addValue(neighbourState);
+                }
+            }
+        })
+    }
+
+    return max;
 }
 
-const findBestPathDuoStep = (graph, limit, start, visitedBitmap, currentMax) => {
+const getScore = (scoreMap, state) => {
+    const log = scoreMap[getId(state)];
+    return log ? log : 0
+}
 
-    const maxPossibleSum = graph.reduce((sum, node, nodeKey) => {
+const getId = (state) => `${state.start},${[state.limit]},${state.visitedBitmap}`;
+
+const estimate = (graph, state) => {
+    const { limit, start, visitedBitmap } = state;
+    return graph.reduce((sum, node, nodeKey) => {
         if (visitedBitmap & (1 << nodeKey)) return sum;
         const timer = limit.map((_, i) => limit[i] - graph[start[i]].refDistance[nodeKey]);
         const pressure = timer.map((time) => time > 0 ? time * node.value : 0);
         return sum + Math.max(...pressure);
-    }, 0);
-    if (maxPossibleSum <= currentMax) return 0;
+    }, 0)
+};
 
-    if (!(~visitedBitmap & (graph[start[0]].refBitmap | graph[start[1]].refBitmap))) return maxPossibleSum;
+class priorityQueue {
+    constructor(data, compareFunc) {
+        this.compareFunc = (a, b) => compareFunc(a, b);
+        this.queue = this.#createQueue(data);
+    }
+    #createQueue = (data) => {
+        const queue = [...data].sort(this.compareFunc);
+        return queue
+    }
+    popHead = () => this.queue.pop();
+    getHead = () => this.queue[this.queue.length - 1];
+    getNthElement = (n) => this.queue[n];
+    getElements = () => this.queue;
+    addValue = (value) => {
+        let l = 0, r = this.queue.length - 1;
+        let insertPoint = r + 1;
 
-    let max = 0;
-    graph[start[0]].refPriority.forEach(refNodeKey => {
-        const nodeBitmap = 1 << refNodeKey;
-        if (visitedBitmap & nodeBitmap) return null;
-        const timer = limit[0] - graph[start[0]].refDistance[refNodeKey];
-        if (timer <= 0) return null;
-        const newVisited = visitedBitmap | nodeBitmap;
-        const pressure = timer * graph[refNodeKey].value;
-        max = Math.max(max, pressure +
-            ((timer > 2)
-                ? findBestPathDuoStep(graph, [timer, limit[1]], [refNodeKey, start[1]], newVisited, max - pressure)
-                : 0))
-    })
-    graph[start[1]].refPriority.forEach(refNodeKey => {
-        const nodeBitmap = 1 << refNodeKey;
-        if (visitedBitmap & nodeBitmap) return null;
-        const timer = limit[1] - graph[start[1]].refDistance[refNodeKey];
-        if (timer <= 0) return null;
-        const newVisited = visitedBitmap | nodeBitmap;
-        const pressure = timer * graph[refNodeKey].value;
-        max = Math.max(max, pressure +
-            ((timer > 2)
-                ? findBestPathDuoStep(graph, [limit[0], timer], [start[0], refNodeKey], newVisited, max - pressure)
-                : 0))
-    })
-    return max;
+        while (l <= r) {
+            const m = Math.floor((l + r) / 2);
+            const compareResult = this.compareFunc(this.getNthElement(m), value);
+            switch (true) {
+                case compareResult < 0: l = m + 1; break;
+                case compareResult > 0: r = m - 1; insertPoint = r + 1; break;
+                case compareResult == 0:
+                    l = r + 1;
+                    insertPoint = m + 1;
+            }
+        }
+
+        this.queue.splice(insertPoint, 0, value);
+        return this
+    }
 }
-
-
 
 const testGraph = {
     "START": { value: 0, refs: { "A": 99, "B": 1, "C": 2 } },
