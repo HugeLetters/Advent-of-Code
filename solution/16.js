@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import { priorityQueue } from "../utils.js";
 
 const fileName = import.meta.url.match(/\/([^\/]+?)\.js$/)[1];
 const input = fs.readFile(`./input/${fileName}.txt`, "utf-8");
@@ -222,40 +223,6 @@ const estimate = (graph, state) => {
         return sum + Math.max(...pressure);
     }, 0)
 };
-
-class priorityQueue {
-    constructor(data, compareFunc) {
-        this.compareFunc = (a, b) => compareFunc(a, b);
-        this.queue = this.#createQueue(data);
-    }
-    #createQueue = (data) => {
-        const queue = [...data].sort(this.compareFunc);
-        return queue
-    }
-    popHead = () => this.queue.pop();
-    getHead = () => this.queue[this.queue.length - 1];
-    getNthElement = (n) => this.queue[n];
-    getElements = () => this.queue;
-    addValue = (value) => {
-        let l = 0, r = this.queue.length - 1;
-        let insertPoint = r + 1;
-
-        while (l <= r) {
-            const m = Math.floor((l + r) / 2);
-            const compareResult = this.compareFunc(this.getNthElement(m), value);
-            switch (true) {
-                case compareResult < 0: l = m + 1; break;
-                case compareResult > 0: r = m - 1; insertPoint = r + 1; break;
-                case compareResult == 0:
-                    l = r + 1;
-                    insertPoint = m + 1;
-            }
-        }
-
-        this.queue.splice(insertPoint, 0, value);
-        return this
-    }
-}
 
 const testGraph = {
     "START": { value: 0, refs: { "A": 99, "B": 2, "C": 4 } },

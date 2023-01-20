@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import { priorityQueue } from "../utils.js";
 
 const fileName = import.meta.url.match(/\/([^\/]+?)\.js$/)[1];
 const input = fs.readFile(`./input/${fileName}.txt`, "utf-8");
@@ -51,7 +52,7 @@ const getInfoGrid = grid => {
 const getCellValue = cell => ({ S: "a", E: "w" }[cell] || cell || "~").charCodeAt(0)
 
 const findShortestPath = (start, end, estimate) => {
-    const consideredNodes = new priorityQueue([start], (a, b) => getScore(totalScore, a) - getScore(totalScore, b))
+    const consideredNodes = new priorityQueue([start], (a, b) => getScore(totalScore, b) - getScore(totalScore, a))
     const originNode = {}, interimScore = { [start.id]: 0 }, totalScore = { [start.id]: estimate(start, end) };
 
     while (consideredNodes.getElements().length != 0) {
@@ -82,7 +83,7 @@ const findClosestStart = (start, end, estimate) => {
         totalScore[node.id] = estimate(node, end);
     }
     )
-    const consideredNodes = new priorityQueue(start, (a, b) => getScore(totalScore, a) - getScore(totalScore, b))
+    const consideredNodes = new priorityQueue(start, (a, b) => getScore(totalScore, b) - getScore(totalScore, a))
 
     while (consideredNodes.getElements().length != 0) {
         const current = consideredNodes.popHead();
@@ -126,38 +127,4 @@ const showGridPath = (grid, path) => {
         newGrid[y][x] = newGrid[y][x].toUpperCase();
     })
     return newGrid.map(row => row.join("") + "\n").join("")
-}
-
-class priorityQueue {
-    constructor(data, compareFunc) {
-        this.compareFunc = (a, b) => -compareFunc(a, b);
-        this.queue = this.#createQueue(data);
-    }
-    #createQueue = (data) => {
-        const queue = [...data].sort(this.compareFunc);
-        return queue
-    }
-    popHead = () => this.queue.pop();
-    getHead = () => this.queue[this.queue.length - 1];
-    getNthElement = (n) => this.queue[n];
-    getElements = () => this.queue;
-    addValue = (value) => {
-        let l = 0, r = this.queue.length - 1;
-        let insertPoint = r + 1;
-
-        while (l <= r) {
-            const m = Math.floor((l + r) / 2);
-            const compareResult = this.compareFunc(this.getNthElement(m), value);
-            switch (true) {
-                case compareResult < 0: l = m + 1; break;
-                case compareResult > 0: r = m - 1; insertPoint = r + 1; break;
-                case compareResult == 0:
-                    l = r + 1;
-                    insertPoint = m + 1;
-            }
-        }
-
-        this.queue.splice(insertPoint, 0, value);
-        return this
-    }
 }
