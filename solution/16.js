@@ -9,7 +9,7 @@ input
     .catch(error => { console.error(`Error occured\n${error}`); });
 
 const solution = (input) => {
-    
+
     console.time(1);
     const graph = parseInput(input);
     const distanceMap = transformDistanceMap(graph, FWPath(graph));
@@ -160,15 +160,13 @@ const findBestPathStep = (graph, limit, start, visitedBitmap, currentMax) => {
 
 const findBestPathDuo = (graph, limit) => {
     graph = optimizeGraph(graph, limit);
-    const startState = { start: [0, 0], limit: [limit, limit], visitedBitmap: 1 };
-    const consideredStates = new priorityQueue([startState]
-        , (a, b) => getScore(totalScore, a) - getScore(totalScore, b));
-    const interimScore = { [getId(startState)]: 0 };
+    const startState = { start: [0, 0], limit: [limit, limit], visitedBitmap: 1, score: 0 };
+    const consideredStates = [startState];
     const totalScore = { [getId(startState)]: estimate(graph, startState) };
 
     let max = 0;
-    while (consideredStates.getElements().length != 0) {
-        const current = consideredStates.popHead();
+    while (consideredStates.length) {
+        const current = consideredStates.pop();
         if (getScore(totalScore, current) < max) continue;
         const { start, limit, visitedBitmap } = current;
         const nodeKey = start[0];
@@ -179,20 +177,19 @@ const findBestPathDuo = (graph, limit) => {
             if (!(unvisitedRefsBitmap % 2)) continue;
             const neighbourLimit = (timer - graph[nodeKey].refDistance[neighbour]);
             if (neighbourLimit <= 0) continue;
+            const neighbourPressure = neighbourLimit * graph[neighbour].value;
+
             const neighbourState = { visitedBitmap: visitedBitmap | (1 << neighbour) };
             neighbourState.start = [start[1], neighbour];
             neighbourState.limit = [limit[1], neighbourLimit];
+            neighbourState.score = neighbourPressure + current.score;
             const neighbourID = getId(neighbourState);
-            if (interimScore[neighbourID] != undefined) continue;
+            if (totalScore[neighbourID]) continue;
 
-            const neighbourPressure = neighbourLimit * graph[neighbour].value;
-            const currentScore = getScore(interimScore, current) + neighbourPressure;
-
-            interimScore[neighbourID] = currentScore;
-            totalScore[neighbourID] = currentScore + estimate(graph, neighbourState);
+            totalScore[neighbourID] = neighbourState.score + estimate(graph, neighbourState);
             if (totalScore[neighbourID] > max) {
-                max = Math.max(max, currentScore);
-                consideredStates.addValue(neighbourState)
+                max = Math.max(max, neighbourState.score);
+                consideredStates.push(neighbourState)
             };
         }
     }
@@ -206,12 +203,12 @@ const getScore = (scoreMap, state) => {
 }
 
 const getId = (state) => {
-    let { start, limit, visitedBitmap } = state;
+    let { start, limit, visitedBitmap, score } = state;
     if (start[0] > start[1]) {
         start = `${start[1]},${start[0]}`;
         limit = `${limit[1]},${limit[0]}`;
     }
-    return `${start},${[limit]},${visitedBitmap}`
+    return `${start},${[limit]},${score},${visitedBitmap}`
 };
 
 const estimate = (graph, state) => {
