@@ -25,7 +25,7 @@ const solution = (input) => {
         timer: 32,
         resources: [0, 0, 0, 0],
         robots: [1, 0, 0, 0],
-    }));
+    }, estimateAlpha));
     console.timeEnd(1);
     // ! PART 1
     // const result = blueprintOutputs.reduce((quality, result, ID) => {
@@ -52,54 +52,61 @@ const parseInput = input => input.split(/\n+/).map(line => {
 }
 )
 
-const bestBlueprintOutput = (blueprint, start) => {
+const bestBlueprintOutput = (blueprint, start, estimate) => {
     // const VALUE_BIT_LIMIT = 8;
     const startID = getID(start);
-    const totalScore = { [startID]: estimate(start) }, robotLimit = getRobotLimit(blueprint);
+    const score = { [startID]: estimate(start, blueprint) }, robotLimit = getRobotLimit(blueprint);
     const consideredStates = [start];
-
-    // todo - turn costs,robots,resources etc to bitmaps/integers
-
-    // TODO Optmization options
-    // # if I build a geode-bot - deposit geode immediately instead of creating a bot: should collapse state-space 
-    // # if I have more resources than I could possibly spend in time left - dont build these robot types
-    // # if I have more resources than I could possibly spend in time left - store that resource as Infinity, should collapse space-state
-    // ? improve estimate formula - maybe calculate how quickly can you make your first geode robot?
-    // # can't get enough geodes in time to beat max score in time - skip
-    // ? if this state is a worse version of the one visited already(timer2<timer1&&robots2<=robots2&res2<=res1)
-    // ? update max only on "final" state when no robot will be built anymore
 
     let max = 0;
     while (consideredStates.length) {
         const current = consideredStates.pop();
         const { timer, robots } = current;
-        if (getScore(totalScore, current) < max) continue;
+        if (getScore(score, current) < max) continue;
 
         robots.forEach((quantity, robot) => {
             // Don't build a new robot if we don't need that much
-            if (!shouldBuild(quantity, robotLimit[robot])) return null;
+            if (quantity >= robotLimit[robot]) return null;
             const waitingTime = timeToBuildStart(current, blueprint[robot]) + 1;
             // No point building a robot if it wouldn't have time to produce anything
             if (waitingTime >= timer) return null;
-            const nextState = waitAndBuild(current, robot, blueprint[robot], waitingTime);
+            const nextState = waitAndBuild(current, robot, blueprint[robot], waitingTime, robotLimit);
+            if (nextState.resources[robot] == Infinity) return null;
             const ID = getID(nextState);
             // If we've already been there - skip it
-            if (totalScore[ID] + 1) return null;
+            if (score[ID] != undefined) return null;
 
-            totalScore[ID] = nextState.resources[RESOURCES.GEODE] + estimate(nextState);
-            if (totalScore[ID] > max) {
+            score[ID] = nextState.resources[RESOURCES.GEODE] + estimate(nextState, blueprint);
+            if (score[ID] > max) {
                 max = Math.max(max, nextState.resources[RESOURCES.GEODE] + nextState.timer * nextState.robots[RESOURCES.GEODE]);
                 consideredStates.push(nextState);
             };
         });
     };
-
     return max;
 }
 
-const estimate = state => {
-    const { timer, robots } = state;
+const estimateBeta = ({ timer, robots }) => {
     return (2 * robots[RESOURCES.GEODE] + timer - 1) * timer / 2
+}
+const estimateAlpha = ({ timer, resources, robots }, blueprint) => {
+    resources = resources.map(_ => [...resources]);
+    robots = [...robots];
+    for (let time = timer; time > 0; time--) {
+        resources.forEach((robotResource, robot) => {
+            resources[robot] = robotResource.map((amount, resource) => amount + robots[resource])
+        });
+        resources.forEach((robotResource, robot) => {
+            const { [robot]: cost } = blueprint;
+            if (cost.every((amount, resource) => robotResource[resource] >= amount)) {
+                cost.forEach((amount, resource) => {
+                    resources[robot][resource] -= amount;
+                });
+                robots[robot]++;
+            };
+        });
+    }
+    return resources[0][RESOURCES.GEODE];
 }
 
 const getID = state => {
@@ -109,11 +116,22 @@ const getID = state => {
 const getScore = (scoreMap, state) => scoreMap[getID(state)] || 0;
 const timeToBuildStart = ({ resources, robots }, cost) => cost.reduce((result, amount, resource) =>
     Math.max(result, Math.ceil((amount - resources[resource]) / robots[resource])), 0);
-const shouldBuild = (amount, limit) => amount < (limit || Infinity);
-const getRobotLimit = blueprint => blueprint.slice(0, -1).map((_, resource) =>
-    blueprint.reduce((limit, _, robot) => Math.max(blueprint[robot][resource] || 0, limit), 0));
-const waitAndBuild = ({ resources, robots, timer }, robot, cost, waitDuration) => ({
-    resources: resources.map((amount, resource) => amount + waitDuration * robots[resource] - (cost[resource] || 0) + ((robot == RESOURCES.GEODE && resource == RESOURCES.GEODE) ? timer - waitDuration : 0)),
-    robots: robots.map((amount, resource) => amount + (resource == robot && resource != RESOURCES.GEODE)),
-    timer: timer - waitDuration
-});
+const getRobotLimit = blueprint => blueprint.map((_, resource) => resource == RESOURCES.GEODE
+    ? Infinity
+    : blueprint.reduce((limit, _, robot) => Math.max(blueprint[robot][resource] || 0, limit), 0));
+const waitAndBuild = ({ resources, robots, timer }, robot, cost, waitDuration, buildLimit) => {
+    const remainingTime = timer - waitDuration;
+    const abundantResourceLimit = buildLimit.map(limit => Math.max(2, remainingTime - 2) * limit);
+    const abundantResources = resources.map((amount, resource) => (amount + waitDuration * robots[resource]) >= abundantResourceLimit[resource] ? true : false)
+    return robot == RESOURCES.GEODE
+        ? ({
+            resources: resources.map((amount, resource) => abundantResources[resource] ? Infinity : (amount + waitDuration * robots[resource] - (cost[resource] || 0) + ((resource == RESOURCES.GEODE) ? remainingTime : 0))),
+            robots: [...robots],
+            timer: remainingTime
+        })
+        : ({
+            resources: resources.map((amount, resource) => abundantResources[resource] ? Infinity : (amount + waitDuration * robots[resource] - (cost[resource] || 0))),
+            robots: robots.map((amount, resource) => amount + (resource == robot)),
+            timer: remainingTime
+        });
+}
