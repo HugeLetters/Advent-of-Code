@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field Canvas</title>
+    <style>
+        html,
+        body,
+        #container {
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+        }
+
+        #field {
+            /* width: 100%; */
+            /* height: 100%; */
+            display: block;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="container">
+        <canvas id="field" />
+    </div>
+    <script>
+        const webSocket = new WebSocket("ws://localhost:3000");
+        const frameTime = 0 * 1000 / 120;
+        webSocket.onmessage = e => {
+            const message = JSON.parse(e.data);
+            switch (message?.type) {
+                case 0:
+                    scale = Math.floor(window.innerHeight / message.height);
+                    canvas.height = message.height * scale;
+                    canvas.width = message.width * scale;
+                    message.field.forEach((line, row) => {
+                        line.forEach((cell, col) => {
+                            drawPoint(field, scale, { x: col, y: row, value: cell });
+                        })
+                    });
+                    sendDelayedMessage(webSocket, { type: 1 }, frameTime);
+                    break;
+                case 1:
+                    drawPoint(field, scale, { ...oldPosition, value: 1 });
+                    oldPosition = message.position;
+                    drawPoint(field, scale, { ...message.position, value: 2 });
+                    sendDelayedMessage(webSocket, { type: 1 }, frameTime);
+                    break;
+            }
+        }
+        const sendDelayedMessage = (ws, message, delay) => {
+            setTimeout(() => {
+                ws.send(JSON.stringify(message))
+            }, delay);
+        }
+    </script>
+    <script>
+        const canvas = document.getElementById("field");
+        const field = canvas.getContext("2d");
+        let scale, oldPosition;
+        const contextParser = ["black", "gray", "yellow"];
+        const drawPoint = (canvasContext, scale, point) => {
+            canvasContext.fillStyle = contextParser[point.value] || "transparent";
+            canvasContext.fillRect(point.x * scale, point.y * scale, scale, scale);
+        }
+    </script>
+</body>
+
+</html>
