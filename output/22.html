@@ -33,7 +33,7 @@
     </div>
     <script>
         const webSocket = new WebSocket("ws://localhost:3000");
-        const frameTime = 0 * 1000 / 120;
+        const frameTime = 1000 / 60;
         webSocket.onmessage = e => {
             const message = JSON.parse(e.data);
             switch (message?.type) {
@@ -49,10 +49,14 @@
                     sendDelayedMessage(webSocket, { type: 1 }, frameTime);
                     break;
                 case 1:
-                    drawPoint(field, scale, { ...oldPosition, value: 1 });
-                    oldPosition = message.position;
+                    drawPoint(field, scale, { ...prevPoint, value: 1 });
+                    prevPoint = message.position;
                     drawPoint(field, scale, { ...message.position, value: 2 });
-                    sendDelayedMessage(webSocket, { type: 1 }, frameTime);
+                    sendDelayedMessage(webSocket, { type: 1 }, 0);
+                    break;
+                case 2:
+                    if (!pointQueue.length) drawQueue(field, scale, pointQueue);
+                    pointQueue.push(message.position);
                     break;
             }
         }
@@ -65,11 +69,20 @@
     <script>
         const canvas = document.getElementById("field");
         const field = canvas.getContext("2d");
-        let scale, oldPosition;
+        let scale, pointQueue = [], prevPoint;
         const contextParser = ["black", "gray", "yellow"];
         const drawPoint = (canvasContext, scale, point) => {
             canvasContext.fillStyle = contextParser[point.value] || "transparent";
             canvasContext.fillRect(point.x * scale, point.y * scale, scale, scale);
+        }
+        const drawQueue = (canvasContext, scale, queue) => {
+            setTimeout(() => {
+                drawPoint(field, scale, { ...prevPoint, value: 1 });
+                prevPoint = pointQueue.shift();
+                drawPoint(field, scale, { ...prevPoint, value: 2 });
+                if (queue.length) { drawQueue(canvasContext, scale, queue) }
+                else { sendDelayedMessage(webSocket, { type: 1 }, 0) };
+            }, frameTime);
         }
     </script>
 </body>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grove Canvas</title>
+    <style>
+        html,
+        body,
+        #container {
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: black;
+            display: flex;
+            justify-content: center;
+        }
+
+        #grove {
+            display: block;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="container">
+        <canvas id="grove" />
+    </div>
+    <script>
+        const webSocket = new WebSocket("ws://localhost:3000");
+        const frameTime = 0*1000 / 10;
+        const groveSize = 150;
+
+        webSocket.onmessage = e => {
+            const elves = Object.values(JSON.parse(e.data));
+            const offest = elves.reduce((result, elf) => result.map((_, i) => Math.min(result[i], elf[i])), [0, 0]);
+            clearCanvas(canvas, grove);
+            elves.forEach(elf => {
+                drawPoint(grove, scale, elf, 0, offest);
+            });
+            sendDelayedMessage(webSocket, { type: 1 }, frameTime);
+        }
+        const sendDelayedMessage = (ws, message, delay) => {
+            setTimeout(() => {
+                ws.send(JSON.stringify(message))
+            }, delay);
+        }
+    </script>
+    <script>
+        const canvas = document.getElementById("grove");
+        const scale = Math.ceil(window.innerHeight / groveSize);
+        canvas.width = groveSize * scale;
+        canvas.height = groveSize * scale;
+        const grove = canvas.getContext("2d");
+        const contextParser = ["gray"];
+        const drawPoint = (canvasContext, scale, point, type, offest) => {
+            canvasContext.fillStyle = contextParser[type];
+            canvasContext.fillRect((point[0] - (offest[0] ?? 0)) * scale, (point[1] - (offest[1] ?? 0)) * scale, scale, scale);
+        };
+        const clearCanvas = (canvas, canvasContext) => {
+            canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+
+</html>

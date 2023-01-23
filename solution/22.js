@@ -1,17 +1,16 @@
 import * as fs from "fs/promises";
-import { argv } from "process";
 import { WebSocketServer } from "ws";
 
 const fileName = import.meta.url.match(/\/([^\/]+?)\.js$/)[1];
 const input = fs.readFile(`./input/${fileName}.txt`, "utf-8");
-const testing = false* 1;
+const testing = process.argv[2] == "testing";
 
 input
     .then(input => { console.log(solution(input)) })
     .catch(error => { console.error(`Error occured\n${error}`); });
 
 const solution = (input) => {
-    input = [input, testInput][testing];
+    input = testing ? testInput : input;
     const map = parseInput(input);
     return walkPath(map);
 }
@@ -38,9 +37,9 @@ const walkPath = ({ field, path }) => {
             width: field.reduce((width, row) => Math.max(width, row.length), 0)
         };
         ws.send(JSON.stringify({ type: 0, field, ...size }));
-        let i = 0
+        let i = 0;
         ws.on('message', (e) => {
-            let move = path[i];
+            const move = path[i];
             i++;
             if (move == undefined) {
                 position[0]++;
@@ -51,24 +50,27 @@ const walkPath = ({ field, path }) => {
             direction %= MOVE.length;
             if (!(move > -1)) {
                 direction += { "L": 3, "R": 1 }[move];
+                ws.send(JSON.stringify({ type: 1, position: { x: position[0], y: position[1] } }));
             } else {
-                [position, direction] = moveForward(field, position, direction, move);
+                [position, direction] = moveForward(field, position, direction, move, ws);
             }
-            ws.send(JSON.stringify({ type: 1, position: { x: position[0], y: position[1] } }));
+            // ws.send(JSON.stringify({ type: 1, position: { x: position[0], y: position[1] } }));
         });
     });
 
 }
-const moveForward = (field, position, direction, move) => {
+const moveForward = (field, position, direction, move, websocket) => {
     let nx, ny, wrapDirection;
     for (let step = 0; step < move; step++) {
         const [dx, dy] = MOVE[direction];
         [nx, ny, wrapDirection] = loopPosition(field, position, [dx, dy], direction)
         if (field[ny][nx] == TILES.WALL) {
+            websocket.send(JSON.stringify({ type: 2, position: { x: position[0], y: position[1] } }));
             return [position, direction];
         }
         direction = wrapDirection;
         position = [nx, ny];
+        websocket.send(JSON.stringify({ type: 2, position: { x: position[0], y: position[1] } }));
     }
     return [position, direction];
 }
@@ -109,39 +111,41 @@ const DIRECT_AXIS = {
     [DIRECTION.DOWN]: DIRECTION.LEFT,
     [DIRECTION.LEFT]: DIRECTION.DOWN,
 }
-const SIDE_SIZE = [50, 4][testing];
-const CUBE_FACES = [[
-    [SIDE_SIZE, 0],
-    [SIDE_SIZE * 2, 0],
-    [SIDE_SIZE, SIDE_SIZE],
-    [0, SIDE_SIZE * 2],
-    [SIDE_SIZE, SIDE_SIZE * 2],
-    [0, SIDE_SIZE * 3],
-], [
-    [SIDE_SIZE * 2, 0],
-    [0, SIDE_SIZE],
-    [SIDE_SIZE, SIDE_SIZE],
-    [SIDE_SIZE * 2, SIDE_SIZE],
-    [SIDE_SIZE * 2, SIDE_SIZE * 2],
-    [SIDE_SIZE * 3, SIDE_SIZE * 2],
-]
-][testing];
-const CUBE_CONNECTIONS = [[
-    { [DIRECTION.UP]: [5, DIRECTION.RIGHT], [DIRECTION.RIGHT]: [1, DIRECTION.RIGHT], [DIRECTION.DOWN]: [2, DIRECTION.DOWN], [DIRECTION.LEFT]: [3, DIRECTION.RIGHT] },
-    { [DIRECTION.UP]: [5, DIRECTION.UP], [DIRECTION.RIGHT]: [4, DIRECTION.LEFT], [DIRECTION.DOWN]: [2, DIRECTION.LEFT], [DIRECTION.LEFT]: [0, DIRECTION.LEFT] },
-    { [DIRECTION.UP]: [0, DIRECTION.UP], [DIRECTION.RIGHT]: [1, DIRECTION.UP], [DIRECTION.DOWN]: [4, DIRECTION.DOWN], [DIRECTION.LEFT]: [3, DIRECTION.DOWN] },
-    { [DIRECTION.UP]: [2, DIRECTION.RIGHT], [DIRECTION.RIGHT]: [4, DIRECTION.RIGHT], [DIRECTION.DOWN]: [5, DIRECTION.DOWN], [DIRECTION.LEFT]: [0, DIRECTION.RIGHT] },
-    { [DIRECTION.UP]: [2, DIRECTION.UP], [DIRECTION.RIGHT]: [1, DIRECTION.LEFT], [DIRECTION.DOWN]: [5, DIRECTION.LEFT], [DIRECTION.LEFT]: [3, DIRECTION.LEFT] },
-    { [DIRECTION.UP]: [3, DIRECTION.UP], [DIRECTION.RIGHT]: [4, DIRECTION.UP], [DIRECTION.DOWN]: [1, DIRECTION.DOWN], [DIRECTION.LEFT]: [0, DIRECTION.DOWN] },
-], [
-    { [DIRECTION.UP]: [1, DIRECTION.DOWN], [DIRECTION.RIGHT]: [5, DIRECTION.LEFT], [DIRECTION.DOWN]: [3, DIRECTION.DOWN], [DIRECTION.LEFT]: [2, DIRECTION.DOWN] },
-    { [DIRECTION.UP]: [0, DIRECTION.DOWN], [DIRECTION.RIGHT]: [2, DIRECTION.RIGHT], [DIRECTION.DOWN]: [4, DIRECTION.UP], [DIRECTION.LEFT]: [5, DIRECTION.UP] },
-    { [DIRECTION.UP]: [0, DIRECTION.RIGHT], [DIRECTION.RIGHT]: [3, DIRECTION.RIGHT], [DIRECTION.DOWN]: [4, DIRECTION.RIGHT], [DIRECTION.LEFT]: [1, DIRECTION.LEFT] },
-    { [DIRECTION.UP]: [0, DIRECTION.UP], [DIRECTION.RIGHT]: [5, DIRECTION.DOWN], [DIRECTION.DOWN]: [4, DIRECTION.DOWN], [DIRECTION.LEFT]: [2, DIRECTION.LEFT] },
-    { [DIRECTION.UP]: [3, DIRECTION.UP], [DIRECTION.RIGHT]: [5, DIRECTION.RIGHT], [DIRECTION.DOWN]: [1, DIRECTION.UP], [DIRECTION.LEFT]: [2, DIRECTION.UP] },
-    { [DIRECTION.UP]: [3, DIRECTION.LEFT], [DIRECTION.RIGHT]: [0, DIRECTION.LEFT], [DIRECTION.DOWN]: [1, DIRECTION.RIGHT], [DIRECTION.LEFT]: [4, DIRECTION.LEFT] },
-]
-][testing];
+const SIDE_SIZE = testing ? 4 : 50;
+const CUBE_FACES = testing
+    ? [
+        [SIDE_SIZE * 2, 0],
+        [0, SIDE_SIZE],
+        [SIDE_SIZE, SIDE_SIZE],
+        [SIDE_SIZE * 2, SIDE_SIZE],
+        [SIDE_SIZE * 2, SIDE_SIZE * 2],
+        [SIDE_SIZE * 3, SIDE_SIZE * 2],
+    ]
+    : [
+        [SIDE_SIZE, 0],
+        [SIDE_SIZE * 2, 0],
+        [SIDE_SIZE, SIDE_SIZE],
+        [0, SIDE_SIZE * 2],
+        [SIDE_SIZE, SIDE_SIZE * 2],
+        [0, SIDE_SIZE * 3],
+    ]
+const CUBE_CONNECTIONS = testing
+    ? [
+        { [DIRECTION.UP]: [1, DIRECTION.DOWN], [DIRECTION.RIGHT]: [5, DIRECTION.LEFT], [DIRECTION.DOWN]: [3, DIRECTION.DOWN], [DIRECTION.LEFT]: [2, DIRECTION.DOWN] },
+        { [DIRECTION.UP]: [0, DIRECTION.DOWN], [DIRECTION.RIGHT]: [2, DIRECTION.RIGHT], [DIRECTION.DOWN]: [4, DIRECTION.UP], [DIRECTION.LEFT]: [5, DIRECTION.UP] },
+        { [DIRECTION.UP]: [0, DIRECTION.RIGHT], [DIRECTION.RIGHT]: [3, DIRECTION.RIGHT], [DIRECTION.DOWN]: [4, DIRECTION.RIGHT], [DIRECTION.LEFT]: [1, DIRECTION.LEFT] },
+        { [DIRECTION.UP]: [0, DIRECTION.UP], [DIRECTION.RIGHT]: [5, DIRECTION.DOWN], [DIRECTION.DOWN]: [4, DIRECTION.DOWN], [DIRECTION.LEFT]: [2, DIRECTION.LEFT] },
+        { [DIRECTION.UP]: [3, DIRECTION.UP], [DIRECTION.RIGHT]: [5, DIRECTION.RIGHT], [DIRECTION.DOWN]: [1, DIRECTION.UP], [DIRECTION.LEFT]: [2, DIRECTION.UP] },
+        { [DIRECTION.UP]: [3, DIRECTION.LEFT], [DIRECTION.RIGHT]: [0, DIRECTION.LEFT], [DIRECTION.DOWN]: [1, DIRECTION.RIGHT], [DIRECTION.LEFT]: [4, DIRECTION.LEFT] },
+    ]
+    : [
+        { [DIRECTION.UP]: [5, DIRECTION.RIGHT], [DIRECTION.RIGHT]: [1, DIRECTION.RIGHT], [DIRECTION.DOWN]: [2, DIRECTION.DOWN], [DIRECTION.LEFT]: [3, DIRECTION.RIGHT] },
+        { [DIRECTION.UP]: [5, DIRECTION.UP], [DIRECTION.RIGHT]: [4, DIRECTION.LEFT], [DIRECTION.DOWN]: [2, DIRECTION.LEFT], [DIRECTION.LEFT]: [0, DIRECTION.LEFT] },
+        { [DIRECTION.UP]: [0, DIRECTION.UP], [DIRECTION.RIGHT]: [1, DIRECTION.UP], [DIRECTION.DOWN]: [4, DIRECTION.DOWN], [DIRECTION.LEFT]: [3, DIRECTION.DOWN] },
+        { [DIRECTION.UP]: [2, DIRECTION.RIGHT], [DIRECTION.RIGHT]: [4, DIRECTION.RIGHT], [DIRECTION.DOWN]: [5, DIRECTION.DOWN], [DIRECTION.LEFT]: [0, DIRECTION.RIGHT] },
+        { [DIRECTION.UP]: [2, DIRECTION.UP], [DIRECTION.RIGHT]: [1, DIRECTION.LEFT], [DIRECTION.DOWN]: [5, DIRECTION.LEFT], [DIRECTION.LEFT]: [3, DIRECTION.LEFT] },
+        { [DIRECTION.UP]: [3, DIRECTION.UP], [DIRECTION.RIGHT]: [4, DIRECTION.UP], [DIRECTION.DOWN]: [1, DIRECTION.DOWN], [DIRECTION.LEFT]: [0, DIRECTION.DOWN] },
+    ]
 
 const testInput = "        ...#\n\
         .#..\n\
