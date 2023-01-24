@@ -72,10 +72,7 @@ function generateValleyStates(valley, windList, cycleDuration) {
 }
 function estimate({ position: [x, y] }, goals) {
     const [dx, dy] = goals.slice(-2);
-    const goalsDistance = goals.reduce((distance, goal, i) => {
-        return distance + (Math.abs(goal - goals[i + 2]) || 0)
-    }, 0)
-    return goalsDistance + ((Math.abs(x - dx) + Math.abs(y - dy)) || 0);
+    return ((Math.abs(x - dx) + Math.abs(y - dy)) || 0)
 }
 function getScore(scoreMap, state) { return scoreMap[getID(state)] ?? Infinity };
 function getID({ position, time, goals }) { return `${position},${time},${goals.length}` };
