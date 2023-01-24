@@ -7,6 +7,7 @@ export class priorityQueue {
         const queue = [...data].sort(this.compareFunc);
         return queue
     }
+    empty = () => this.queue = [];
     popHead = () => this.queue.pop();
     getElements = () => this.queue;
     addValue = (value) => {

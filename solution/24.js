@@ -14,7 +14,9 @@ const solution = (input) => {
     const [windList, blankValley, cycleDuration] = parseInput(input);
     const valleyStates = generateValleyStates(blankValley, windList, cycleDuration);
     const [start, finish] = getStartAndFinish(blankValley);
+    console.time(1);
     const bestTime = findShortestPath(valleyStates, cycleDuration, [start, 0], [finish, blankValley.length - 1]);
+    console.timeEnd(1);
     const result = bestTime;
     return result;
 }
@@ -23,16 +25,24 @@ const solution = (input) => {
 
 const findShortestPath = (valleyStates, cycleDuration, start, finish) => {
     const boundary = [valleyStates[0][0].length - 1, valleyStates[0].length - 1];
-    start = { position: start, time: 0 };
+    start = { position: start, time: 0, goals: [...finish, ...start, ...finish] };
     const queue = new priorityQueue([start], (a, b) => getScore(totalScore, b) - getScore(totalScore, a));
-    const tallyScore = { [getID(start)]: 0 }, totalScore = { [getID(start)]: estimate(start, finish) };
+    const tallyScore = { [getID(start)]: 0 }, totalScore = { [getID(start)]: estimate(start, start.goals) };
     const neighbours = [[0, 0], ...Object.values(WIND_TYPES)];
     while (queue.getElements().length) {
         const current = queue.popHead();
-        const { position: cPos, time: cTime } = current;
-        if (cPos.every((pos, axis) => pos == finish[axis])) return getScore(tallyScore, current);
+        const { position: cPos, time: cTime, goals: cGoal } = current;
+        if (cPos.every((pos, axis) => pos == cGoal.slice(-2)[axis])) {
+            if (cGoal.length == 2) return getScore(tallyScore, current);
+            const cScore = getScore(tallyScore, current);
+            cGoal.pop(); cGoal.pop();
+            const ID = getID(current);
+            tallyScore[ID] = cScore;
+            totalScore[ID] = cScore + estimate(current, cGoal);
+            queue.empty();
+        };
         neighbours.forEach(next => {
-            next = { time: (cTime + 1) % cycleDuration, position: cPos.map((pos, axis) => pos + next[axis]) };
+            next = { time: (cTime + 1) % cycleDuration, position: cPos.map((pos, axis) => pos + next[axis]), goals: [...cGoal] };
             const { position: nPos, time: nTime } = next;
             const nScore = getScore(tallyScore, current) + 1;
             if (nScore >= getScore(tallyScore, next)
@@ -40,7 +50,7 @@ const findShortestPath = (valleyStates, cycleDuration, start, finish) => {
                 || valleyStates[nTime % cycleDuration][nPos[1]][nPos[0]]) return null;
             const ID = getID(next);
             tallyScore[ID] = nScore;
-            totalScore[ID] = nScore + estimate(next, finish);
+            totalScore[ID] = nScore + estimate(next, next.goals);
             queue.addValue(next);
         })
     }
@@ -60,9 +70,15 @@ function generateValleyStates(valley, windList, cycleDuration) {
     }
     return valleyStates
 }
-function estimate({ position: [x, y] }, [dx, dy]) { return Math.abs(x - dx) + Math.abs(y - dy) }
+function estimate({ position: [x, y] }, goals) {
+    const [dx, dy] = goals.slice(-2);
+    const goalsDistance = goals.reduce((distance, goal, i) => {
+        return distance + (Math.abs(goal - goals[i + 2]) || 0)
+    }, 0)
+    return goalsDistance + ((Math.abs(x - dx) + Math.abs(y - dy)) || 0);
+}
 function getScore(scoreMap, state) { return scoreMap[getID(state)] ?? Infinity };
-function getID({ position, time }) { return `${position},${time}` };
+function getID({ position, time, goals }) { return `${position},${time},${goals.length}` };
 function getStartAndFinish(valley) {
     return [
         valley[0].findIndex(tile => tile == TILE_TYPES.EMPTY),
