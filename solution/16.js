@@ -1,5 +1,4 @@
 import * as fs from "fs/promises";
-import { priorityQueue } from "../utils.js";
 
 const fileName = import.meta.url.match(/\/([^\/]+?)\.js$/)[1];
 const input = fs.readFile(`./input/${fileName}.txt`, "utf-8");
@@ -184,7 +183,7 @@ const findBestPathDuo = (graph, limit) => {
             neighbourState.limit = [limit[1], neighbourLimit];
             neighbourState.score = neighbourPressure + current.score;
             const neighbourID = getId(neighbourState);
-            if (totalScore[neighbourID]) continue;
+            if (neighbourState.score <= totalScore[neighbourID]) continue;
 
             totalScore[neighbourID] = neighbourState.score + estimate(graph, neighbourState);
             if (totalScore[neighbourID] > max) {
@@ -203,12 +202,12 @@ const getScore = (scoreMap, state) => {
 }
 
 const getId = (state) => {
-    let { start, limit, visitedBitmap, score } = state;
+    let { start, limit, visitedBitmap} = state;
     if (start[0] > start[1]) {
         start = `${start[1]},${start[0]}`;
         limit = `${limit[1]},${limit[0]}`;
     }
-    return `${start},${[limit]},${score},${visitedBitmap}`
+    return `${start},${[limit]},${visitedBitmap}`
 };
 
 const estimate = (graph, state) => {

@@ -29,3 +29,14 @@ export class priorityQueue {
         return this
     }
 }
+
+export const gcd = (a, b) => {
+    while (a * b) {
+        return gcd(a % b, b % a)
+    }
+    return a + b
+}
+
+export const lcm = (...args) => {
+    return args.reduce((lcm, value) => Math.abs(lcm) * (Math.abs(value) / gcd(lcm, value)))
+}

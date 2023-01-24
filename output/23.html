@@ -31,7 +31,7 @@
     </div>
     <script>
         const webSocket = new WebSocket("ws://localhost:3000");
-        const frameTime = 0*1000 / 10;
+        const frameTime = 1000 / 10;
         const groveSize = 150;
 
         webSocket.onmessage = e => {

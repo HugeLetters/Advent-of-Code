@@ -1,4 +1,5 @@
 import * as fs from "fs/promises";
+import { lcm } from "../utils.js"
 
 const fileName = import.meta.url.match(/\/([^\/]+?)\.js$/)[1];
 const input = fs.readFile(`./input/${fileName}.txt`, "utf-8");
@@ -61,14 +62,3 @@ const getMonkeyBusiness = monkeyList => monkeyList.reduce((max, monkey) => {
         : max
 }
     , [monkeyList[0].inspected, monkeyList[1].inspected].sort((a, b) => a - b)).reduce((prod, val) => prod *= val)
-
-const gcd = (a, b) => {
-    while (a * b) {
-        return gcd(a % b, b % a)
-    }
-    return a + b
-}
-
-const lcm = (...args) => {
-    return args.reduce((lcm, value) => Math.abs(lcm) * (Math.abs(value) / gcd(lcm, value)))
-}

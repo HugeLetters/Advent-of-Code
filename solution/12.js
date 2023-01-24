@@ -9,13 +9,13 @@ input
     .catch(error => { console.error(`Error occured\n${error}`); });
 
 const solution = (input) => {
-    console.time(1);
     const grid = getGrid(input);
     const { start, end } = getInfoGrid(grid);
+    console.time(1);
     const shortestPath = findClosestStart(start, end, pathEstimate);
+    console.timeEnd(1);
     const gridWithPath = showGridPath(grid, shortestPath.path);
     const result = shortestPath;
-    console.timeEnd(1);
     fs.writeFile(`./output/${fileName}.txt`, gridWithPath)
     return result
 }
@@ -99,7 +99,7 @@ const findClosestStart = (start, end, estimate) => {
                 totalScore[neighbour.id] = currentScore + estimate(neighbour, end);
                 if (!consideredNodes.getElements().includes(neighbour)) {
                     consideredNodes.addValue(neighbour);
-                }
+                } 
             }
         })
     }

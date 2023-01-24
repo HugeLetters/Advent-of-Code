@@ -33,7 +33,7 @@
     </div>
     <script>
         const webSocket = new WebSocket("ws://localhost:3000");
-        const frameTime = 1000 / 60;
+        const frameTime = 1000 / 10;
         webSocket.onmessage = e => {
             const message = JSON.parse(e.data);
             switch (message?.type) {
