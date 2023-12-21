@@ -1,0 +1,15 @@
+(lang dune 3.12)
+
+(name aoc2023)
+
+(generate_opam_files true)
+
+(authors "Huge Letters")
+(package
+ (allow_empty)
+ (name aoc2023)
+ (synopsis "Advent of Code 2023")
+ (description "Me trying to learn OCaml bit by bit by doing AoC 2023")
+ (depends ocaml dune)
+)
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
