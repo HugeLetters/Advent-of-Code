@@ -37,20 +37,6 @@ type UpdateBoard<
   },
   TicTacToeBoard
 >;
-type CreatePatterns<
-  Coordinate extends TicTacToeCoordinate,
-  Chip extends TicTacToeChip
-> = Coordinate extends Coordinate ? UpdateBoard<NeverBoard, Coordinate, Chip> : never;
-
-type ColumnCoordinate<Col = TicTacToeXCoordinate> = Col extends Col ? [TicTacToeYCoordinate, Col] : never;
-
-type RowCoordinate<Row = TicTacToeYCoordinate> = Row extends Row ? [Row, TicTacToeYCoordinate] : never;
-
-type TicTacToeWinPattern<Chip extends TicTacToeChip> =
-  | UpdateBoard<NeverBoard, ["0", "0"] | ["1", "1"] | ["2", "2"], Chip>
-  | UpdateBoard<NeverBoard, ["0", "2"] | ["1", "1"] | ["2", "0"], Chip>
-  | CreatePatterns<ColumnCoordinate, Chip>
-  | CreatePatterns<RowCoordinate, Chip>;
 
 type EmptyRow = ["  ", "  ", "  "];
 type EmptyBoard = [EmptyRow, EmptyRow, EmptyRow];
@@ -60,6 +46,20 @@ type NewGame = {
   board: EmptyBoard;
   state: "❌";
 };
+
+type CreatePatterns<
+  Coordinate extends TicTacToeCoordinate,
+  Chip extends TicTacToeChip
+> = Coordinate extends Coordinate ? UpdateBoard<NeverBoard, Coordinate, Chip> : never;
+
+type ColumnCoordinate<Col = TicTacToeXCoordinate> = Col extends Col ? [TicTacToeYCoordinate, Col] : never;
+type RowCoordinate<Row = TicTacToeYCoordinate> = Row extends Row ? [Row, TicTacToeYCoordinate] : never;
+
+type TicTacToeWinPattern<Chip extends TicTacToeChip> =
+  | UpdateBoard<NeverBoard, ["0", "0"] | ["1", "1"] | ["2", "2"], Chip>
+  | UpdateBoard<NeverBoard, ["0", "2"] | ["1", "1"] | ["2", "0"], Chip>
+  | CreatePatterns<ColumnCoordinate, Chip>
+  | CreatePatterns<RowCoordinate, Chip>;
 
 type AxisPositionToCoordinate<P extends TicTacToeYPosition | TicTacToeXPosition> = P extends "top" | "left"
   ? "0"
