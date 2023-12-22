@@ -41,20 +41,20 @@ type UnionToIntersection<U> = (U extends U ? (arg: U) => void : never) extends (
   ? I
   : never;
 
-type GetRowValues<Grid extends SudokuGrid, $RI extends RowIndex = RowIndex> = UnionToIntersection<
-  $RI extends $RI ? [Grid[$RI & keyof Grid][SubgridIndex][SubgridIndex]] : never
->[0];
+type GetRowValues<Grid extends SudokuGrid, $RI extends RowIndex = RowIndex> = $RI extends $RI
+  ? [Grid[$RI & keyof Grid][SubgridIndex][SubgridIndex]]
+  : never;
 
 type GetColValues<
   Grid extends SudokuGrid,
   $CI extends SubgridIndex = SubgridIndex,
   $SI extends SubgridIndex = SubgridIndex
-> = UnionToIntersection<$CI extends $CI ? ($SI extends $SI ? [Grid[RowIndex][$CI][$SI]] : never) : never>[0];
+> = $CI extends $CI ? ($SI extends $SI ? [Grid[RowIndex][$CI][$SI]] : never) : never;
 
 type GetSubgridTrioValues<
   Trio extends SudokuRowTrio,
   $CI extends SubgridIndex = SubgridIndex
-> = UnionToIntersection<$CI extends $CI ? [Trio[$CI][SubgridIndex][SubgridIndex]] : never>[0];
+> = $CI extends $CI ? [Trio[$CI][SubgridIndex][SubgridIndex]] : never;
 
 type GetSubgridValues<Grid> = Grid extends [
   infer A extends SudokuRow,
@@ -65,8 +65,8 @@ type GetSubgridValues<Grid> = Grid extends [
   ? GetSubgridTrioValues<[A, B, C]> & GetSubgridValues<R>
   : unknown;
 
-type Validate<Grid extends SudokuGrid> = Reindeer extends GetSubgridValues<Grid> &
-  GetRowValues<Grid> &
-  GetColValues<Grid>
+type Validate<Grid extends SudokuGrid> = Reindeer extends UnionToIntersection<
+  GetSubgridValues<Grid> | GetRowValues<Grid> | GetColValues<Grid>
+>[0]
   ? true
   : false;
