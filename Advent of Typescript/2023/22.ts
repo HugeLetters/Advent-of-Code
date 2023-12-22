@@ -54,7 +54,7 @@ type GetColValues<
 type GetSubgridTrioValues<
   Trio extends SudokuRowTrio,
   $CI extends SubgridIndex = SubgridIndex
-> = $CI extends $CI ? [Trio[$CI][SubgridIndex][SubgridIndex]] : never;
+> = $CI extends $CI ? [Trio[SubgridIndex][$CI][SubgridIndex]] : never;
 
 type GetSubgridValues<Grid> = Grid extends [
   infer A extends SudokuRow,
