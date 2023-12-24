@@ -103,11 +103,4 @@ type Connect4<Game extends Connect4Game, Col extends Connect4ColIndex> = GameRes
   Game["state"] & Connect4Chip
 >;
 
-type PipeMoves<Game extends Connect4Game, Moves extends Connect4ColIndex[]> = Moves extends [
-  infer F extends Connect4ColIndex,
-  ...infer R extends Connect4ColIndex[]
-]
-  ? PipeMoves<Connect4<Game, F>, R>
-  : Game;
-
 export {};
