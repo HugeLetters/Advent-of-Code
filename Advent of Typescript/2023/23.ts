@@ -1,6 +1,6 @@
-type Numeric = `${number}`;
-type TupleIndicies<Tuple extends any[]> = keyof Tuple & Numeric;
-type ParseInt<S extends Numeric> = S extends `${infer N extends number}` ? N : never;
+type TupleIndex<Tuple extends any[]> = keyof Tuple & `${number}` extends `${infer Number extends number}`
+  ? Number
+  : never;
 
 type Connect4Chip = "🔴" | "🟡";
 type Connect4EmptyCell = "  ";
@@ -17,22 +17,22 @@ type Connect4Row = [
   Connect4Cell
 ];
 type Connect4Board = [Connect4Row, Connect4Row, Connect4Row, Connect4Row, Connect4Row, Connect4Row];
-type Connect4RowIndex = TupleIndicies<Connect4Board>;
-type Connect4ColIndex = TupleIndicies<Connect4Row>;
+type Connect4RowIndex = TupleIndex<Connect4Board>;
+type Connect4ColIndex = TupleIndex<Connect4Row>;
 type Connect4Game = {
   board: Connect4Board;
   state: Connect4State;
 };
 
-type EmptyRow = Connect4Row extends infer Row ? { [Col in keyof Row]: Connect4EmptyCell } : never;
-type EmptyBoard = Connect4Board extends infer Board ? { [Row in keyof Board]: EmptyRow } : never;
+type EmptyRow<$Row = Connect4Row> = { [Col in keyof $Row]: Connect4EmptyCell };
+type EmptyBoard<$Board = Connect4Board> = { [Row in keyof $Board]: EmptyRow };
 type NewGame = {
   board: EmptyBoard;
   state: "🟡";
 };
 
 type UpdateRow<Row extends Connect4Row, Col extends Connect4ColIndex, Value extends Connect4Cell> = {
-  [C in keyof Row]: C extends Col ? Value : Row[C];
+  [C in keyof Row]: C extends `${Col}` ? Value : Row[C];
 };
 type PlaceChip<
   Board extends Connect4Row[],
@@ -46,38 +46,36 @@ type PlaceChip<
   : $NewBoard;
 
 type TupleOfLength<
-  Length extends Numeric,
-  $Acc extends Numeric[] = [],
-  $Length extends Numeric = `${$Acc["length"]}`
+  Length extends number,
+  $Acc extends number[] = [],
+  $Length extends number = $Acc["length"]
 > = $Length extends Length ? $Acc : TupleOfLength<Length, [...$Acc, $Length]>;
 
-type NumericRange<Lower extends Numeric, Higher extends Numeric> = TupleOfLength<Higher> extends [
+type Range<Lower extends number, Higher extends number> = TupleOfLength<Higher> extends [
   ...TupleOfLength<Lower>,
-  ...infer Rest extends Numeric[]
+  ...infer Rest extends number[]
 ]
   ? [...Rest, Higher]
   : [];
 
-type Add<A extends Numeric, B extends Numeric> = [...TupleOfLength<A>, ...TupleOfLength<B>]["length"] &
-  number;
+type AddThree<A extends number> = [...TupleOfLength<A>, ...TupleOfLength<3>]["length"] & number;
 
-type FourRange<R extends Numeric> = NumericRange<R, `${Add<R, "3">}`>;
-type AssertRange<Range extends Numeric[], Boundary extends Numeric> = Range[number] extends Boundary
+type FourRange<R extends number> = Range<R, AddThree<R>>;
+type AssertRange<Range extends number[], Boundary extends number> = Range[number] extends Boundary
   ? Range
   : never;
-type Connect4FourRange<Boundary extends Numeric, Value extends Boundary = Boundary> = Value extends Value
+type Connect4FourRange<Boundary extends number, Value extends Boundary = Boundary> = Value extends Value
   ? AssertRange<FourRange<Value>, Boundary>
   : never;
 type Connect4WinRowRange = Connect4FourRange<Connect4ColIndex>;
 type Connect4WinColRange = Connect4FourRange<Connect4RowIndex>;
-type Connect4WinRow<
-  $Row extends Connect4RowIndex = Connect4RowIndex,
-  $Col extends Connect4WinRowRange = Connect4WinRowRange
-> = $Row extends $Row ? ($Col extends $Col ? [[$Row, $Col[number]]] : never) : never;
-type Connect4WinCol<
-  $Row extends Connect4WinColRange = Connect4WinColRange,
-  $Col extends Connect4RowIndex = Connect4RowIndex
-> = $Row extends $Row ? ($Col extends $Col ? [[$Row[number], $Col]] : never) : never;
+type DistributedTuple<T> = T extends T ? [T] : never;
+type Connect4Line<
+  $Row extends Array<Connect4RowIndex>,
+  $Col extends Array<Connect4ColIndex>
+> = $Row extends $Row ? ($Col extends $Col ? [[$Row[number], $Col[number]]] : never) : never;
+type Connect4WinRow = Connect4Line<DistributedTuple<Connect4RowIndex>, Connect4WinRowRange>;
+type Connect4WinCol = Connect4Line<Connect4WinColRange, DistributedTuple<Connect4ColIndex>>;
 
 type ConcatPairs<A extends any[], B extends any[]> = [A, B] extends [
   [infer FA, ...infer RA],
@@ -85,19 +83,16 @@ type ConcatPairs<A extends any[], B extends any[]> = [A, B] extends [
 ]
   ? [FA, FB] | ConcatPairs<RA, RB>
   : never;
-
+type Reverse<Arr extends unknown[], $Rev extends Arr[number][] = []> = Arr extends [...infer R, infer F]
+  ? Reverse<R, [...$Rev, F]>
+  : $Rev;
 type Connect4Diagonal<
   $Row extends Connect4RowIndex[] = Connect4WinColRange,
   $Col extends Connect4ColIndex[] = Connect4WinRowRange
 > = $Row extends $Row ? ($Col extends $Col ? [ConcatPairs<$Row, $Col>] : never) : never;
-
-type Reverse<Arr extends unknown[], $Rev extends Arr[number][] = []> = Arr extends [...infer R, infer F]
-  ? Reverse<R, [...$Rev, F]>
-  : $Rev;
-
 type Connect4CrossDiagonal = Connect4Diagonal<Reverse<Connect4WinColRange>>;
-type Connect4WinDiagonal = Connect4Diagonal | Connect4CrossDiagonal;
-type Connect4WinLine = Connect4WinRow | Connect4WinCol | Connect4WinDiagonal;
+
+type Connect4WinLine = Connect4WinRow | Connect4WinCol | Connect4Diagonal | Connect4CrossDiagonal;
 
 type GetValue<
   Board extends Connect4Board,
@@ -107,7 +102,7 @@ type IsWin<
   Board extends Connect4Board,
   Chip extends Connect4Chip,
   $Line extends Connect4WinLine = Connect4WinLine
-> = true extends ($Line extends $Line ? (GetValue<Board, $Line["0"]> extends Chip ? true : false) : never)
+> = true extends ($Line extends $Line ? (GetValue<Board, $Line[0]> extends Chip ? true : false) : never)
   ? true
   : false;
 
@@ -120,14 +115,14 @@ type GameResult<Board extends Connect4Board, State extends Connect4Chip> = {
     : "Draw";
 };
 
-type Connect4<Game extends Connect4Game, Col extends ParseInt<Connect4ColIndex>> = GameResult<
-  PlaceChip<Game["board"], `${Col}`, Game["state"] & Connect4Chip>,
+type Connect4<Game extends Connect4Game, Col extends Connect4ColIndex> = GameResult<
+  PlaceChip<Game["board"], Col, Game["state"] & Connect4Chip>,
   Game["state"] & Connect4Chip
 >;
 
-type PipeMoves<Game extends Connect4Game, Moves extends ParseInt<Connect4ColIndex>[]> = Moves extends [
-  infer F extends ParseInt<Connect4ColIndex>,
-  ...infer R extends ParseInt<Connect4ColIndex>[]
+type PipeMoves<Game extends Connect4Game, Moves extends Connect4ColIndex[]> = Moves extends [
+  infer F extends Connect4ColIndex,
+  ...infer R extends Connect4ColIndex[]
 ]
   ? PipeMoves<Connect4<Game, F>, R>
   : Game;
