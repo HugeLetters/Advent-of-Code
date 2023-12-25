@@ -70,3 +70,5 @@ type Validate<Grid extends SudokuGrid> = Reindeer extends UnionToIntersection<
 >[0]
   ? true
   : false;
+
+export {};
