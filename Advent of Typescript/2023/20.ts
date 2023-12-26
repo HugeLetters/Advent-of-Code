@@ -40,3 +40,5 @@ type Flatten<A, $A extends any[] = []> = A extends [infer F extends any[], ...in
   : $A;
 
 type ToAsciiArt<I extends string> = Flatten<AsciiArray<Uppercase<I>>>;
+
+export {};

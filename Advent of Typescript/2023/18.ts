@@ -9,3 +9,5 @@ type UnionToTuple<U, Last = LastInUnion<U>> = [U] extends [never]
 type FilterObject<O, V> = { [K in keyof O as O[K] extends V ? K : never]: O[K] };
 
 type Count<A, V> = UnionToTuple<keyof FilterObject<A, V>>["length"];
+
+export {};

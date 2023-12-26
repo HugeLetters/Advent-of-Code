@@ -98,3 +98,5 @@ type TicTacToe<
   Move extends TicTacToePosition,
   $Move extends TicTacToeBoard = MakeMove<Game, Move>
 > = $Move extends Game["board"] ? Game : GameResult<$Move, Game["state"]>;
+
+export {};

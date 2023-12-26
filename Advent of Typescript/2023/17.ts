@@ -15,3 +15,5 @@ type WhoWins<First extends RockPaperScissors, Second extends RockPaperScissors> 
   : [First, Second] extends [Second, First]
   ? Draw
   : Win;
+
+export {};
